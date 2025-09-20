@@ -3,9 +3,12 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const path = require("path");
 
 const app = express();
+
+// =====================
+// Middlewares
+// =====================
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
@@ -17,14 +20,28 @@ const MONGO =
   process.env.MONGO_URI || "mongodb://127.0.0.1:27017/video-project";
 
 mongoose
-  .connect(MONGO)
-  .then(() =>
+  .connect(MONGO) //  no extra options needed in mongoose v6+
+  .then(() => {
     console.log(
-      "✅ MongoDB Connected:",
+      " MongoDB Connected:",
       MONGO.includes("127.0.0.1") ? "local video-project" : "Atlas Cluster"
-    )
-  )
-  .catch((err) => console.error("❌ MongoDB Connection Error:", err.message));
+    );
+  })
+  .catch((err) =>
+    console.error("❌ MongoDB Connection Error:", err?.message || err)
+  );
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  try {
+    await mongoose.disconnect();
+    console.log("🔌 Mongoose disconnected on app termination (SIGINT).");
+    process.exit(0);
+  } catch (err) {
+    console.error("Error during mongoose disconnect:", err);
+    process.exit(1);
+  }
+});
 
 // =====================
 // Routes Import
@@ -64,5 +81,5 @@ app.use((req, res) =>
 // =====================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
-  console.log(`🚀 Server running at http://localhost:${PORT}`)
+  console.log(` Server running at http://localhost:${PORT} (PORT ${PORT})`)
 );
