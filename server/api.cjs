@@ -9,21 +9,34 @@ const app = express();
 // =====================
 // Middlewares
 // =====================
-app.use(cors());
+// Body parsers
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// CORS setup
+app.use(
+  cors({
+    origin: "*", // during dev allow all. In production, restrict to frontend URL.
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Handle preflight requests
+app.options("*", cors());
+
 app.use(cookieParser());
 
 // =====================
 // MongoDB Connection
 // =====================
-const MONGO =
-  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/video-project";
+const MONGO = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/video-project";
 
 mongoose
-  .connect(MONGO) //  no extra options needed in mongoose v6+
+  .connect(MONGO)
   .then(() => {
     console.log(
-      " MongoDB Connected:",
+      "✅ MongoDB Connected:",
       MONGO.includes("127.0.0.1") ? "local video-project" : "Atlas Cluster"
     );
   })
@@ -56,7 +69,7 @@ const savedRoutes = require("./routes/savedRoutes.js");
 // Routes Mount
 // =====================
 app.use("/api/categories", categoryRoutes);
-app.use("/api/users", userRoutes); // user listing + register/login
+app.use("/api/users", userRoutes);   // user listing + register/login
 app.use("/api/admins", adminRoutes); // admin listing
 app.use("/api/videos", videoRoutes);
 
@@ -64,7 +77,7 @@ app.use("/api/videos", videoRoutes);
 app.use("/api/users", savedRoutes);
 
 // backward-compatible endpoints
-app.use("/api/user", userRoutes); // /api/user/register , /api/user/login
+app.use("/api/user", userRoutes);  // /api/user/register , /api/user/login
 app.use("/api/admin", adminRoutes); // /api/admin/login
 
 // =====================
@@ -72,14 +85,12 @@ app.use("/api/admin", adminRoutes); // /api/admin/login
 // =====================
 app.get("/", (req, res) => res.send("API OK"));
 
-app.use((req, res) =>
-  res.status(404).send(`Cannot ${req.method} ${req.path}`)
-);
+app.use((req, res) => res.status(404).send(`Cannot ${req.method} ${req.path}`));
 
 // =====================
 // Start Server
 // =====================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
-  console.log(` Server running at http://localhost:${PORT} (PORT ${PORT})`)
+  console.log(`🚀 Server running at http://localhost:${PORT} (PORT ${PORT})`)
 );
