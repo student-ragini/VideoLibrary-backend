@@ -1,4 +1,4 @@
-
+// server/routes/videoRoutes.js
 const express = require("express");
 const Video = require("../models/Video");
 const router = express.Router();
@@ -9,7 +9,7 @@ router.get("/", async (_req, res) => {
     const videos = await Video.find().lean();
     res.json(videos);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || String(err) });
   }
 });
 
@@ -32,26 +32,35 @@ router.get("/:id", async (req, res) => {
     if (!video) return res.status(404).json({ error: "Video not found" });
     res.json(video);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || String(err) });
   }
 });
 
 // POST /api/videos -> create new video
 router.post("/", async (req, res) => {
   try {
-    const payload = req.body;
-    // make sure video_id exists (auto-generate if not)
+    const payload = req.body || {};
+
+    // ensure video_id exists (auto-generate if not)
     if (!payload.video_id) {
-      // find max video_id in collection and add 1
       const last = await Video.findOne().sort({ video_id: -1 }).lean();
-      payload.video_id = last ? (last.video_id || 0) + 1 : 1;
+      payload.video_id = last ? (Number(last.video_id) || 0) + 1 : 1;
     }
+
+    // sanitize numeric fields (in case they came as strings)
+    payload.likes = Number(payload.likes) || 0;
+    payload.views = Number(payload.views) || 0;
+    payload.category_id = Number(payload.category_id) || 1;
+
+    // ensure comments exists (schema has default but set here too)
+    if (typeof payload.comments === "undefined") payload.comments = "";
 
     const doc = new Video(payload);
     await doc.save();
     res.json({ success: true, video: doc });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("POST /api/videos error:", err);
+    res.status(500).json({ success: false, error: err.message || String(err) });
   }
 });
 
@@ -59,7 +68,12 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const body = req.body;
+    const body = req.body || {};
+
+    // sanitize numeric fields if present
+    if (body.likes !== undefined) body.likes = Number(body.likes) || 0;
+    if (body.views !== undefined) body.views = Number(body.views) || 0;
+    if (body.category_id !== undefined) body.category_id = Number(body.category_id) || 1;
 
     let updated = null;
     // try find by ObjectId first
@@ -74,7 +88,8 @@ router.put("/:id", async (req, res) => {
     if (!updated) return res.status(404).json({ error: "Video not found for update" });
     res.json({ success: true, video: updated });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("PUT /api/videos/:id error:", err);
+    res.status(500).json({ success: false, error: err.message || String(err) });
   }
 });
 
@@ -95,7 +110,8 @@ router.delete("/:id", async (req, res) => {
     if (!removed) return res.status(404).json({ error: "Video not found for delete" });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("DELETE /api/videos/:id error:", err);
+    res.status(500).json({ success: false, error: err.message || String(err) });
   }
 });
 
