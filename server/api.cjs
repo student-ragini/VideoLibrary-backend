@@ -1,6 +1,5 @@
 // server/api.cjs
 // Backwards-compatible /api/user + /api/users, improved MongoDB hints, graceful shutdown
-
 require('dotenv').config(); // load .env at top
 const express = require('express');
 const mongoose = require('mongoose');
@@ -66,12 +65,10 @@ async function connectDB() {
       console.error('  - Try using 8.8.8.8 as DNS in your network settings or use a non-SRV mongodb:// connection string from Atlas.\n');
     }
 
+    // Fatal - exit so Render shows failure
     process.exit(1);
   }
 }
-
-// Immediately try DB connect
-connectDB();
 
 // ---------- ROUTES ----------
 const categoryRoutes = require('./routes/categoryRoutes.js');
@@ -99,21 +96,78 @@ app.get('/', (req, res) => res.send('API OK'));
 // 404 fallback
 app.use((req, res) => res.status(404).send(`Cannot ${req.method} ${req.path}`));
 
-// Start server
+// Start server only after DB connected
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+let server; // will hold server instance
 
-// Graceful shutdown
-function shutdown() {
-  console.log('🛑 Shutting down server...');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
-      console.log('🔌 MongoDB connection closed.');
-      process.exit(0);
-    });
+async function start() {
+  await connectDB();
+  server = app.listen(PORT, () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
   });
 }
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+
+// Graceful shutdown (async-safe)
+function setupGracefulShutdown() {
+  const shutdown = (signal) => {
+    return async () => {
+      try {
+        console.log(`🛑 ${signal} received - shutting down server gracefully...`);
+        // Stop accepting new connections
+        if (server) {
+          server.close((err) => {
+            if (err) {
+              console.error('❌ Error while closing HTTP server:', err);
+            } else {
+              console.log('HTTP server closed.');
+            }
+          });
+        }
+        // Close mongoose connection (do NOT pass a callback - returns a Promise)
+        try {
+          await mongoose.connection.close();
+          console.log('🔌 MongoDB connection closed.');
+          process.exit(0);
+        } catch (closeErr) {
+          console.error('❌ Error closing MongoDB connection:', closeErr);
+          process.exit(1);
+        }
+      } catch (err) {
+        console.error('❌ Error during shutdown:', err);
+        process.exit(1);
+      }
+    };
+  };
+
+  process.on('SIGINT', shutdown('SIGINT'));
+  process.on('SIGTERM', shutdown('SIGTERM'));
+
+  // Optional: handle uncaught exceptions / unhandled rejections and then exit
+  process.on('uncaughtException', (err) => {
+    console.error('uncaughtException:', err);
+    // try to close gracefully then exit
+    (async () => {
+      try {
+        await mongoose.connection.close();
+      } catch (e) { /* ignore */ }
+      process.exit(1);
+    })();
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('unhandledRejection:', reason);
+    (async () => {
+      try {
+        await mongoose.connection.close();
+      } catch (e) { /* ignore */ }
+      process.exit(1);
+    })();
+  });
+}
+
+// Initialize
+setupGracefulShutdown();
+start().catch((err) => {
+  console.error('Startup failure:', err);
+  process.exit(1);
+});
