@@ -1,6 +1,7 @@
 // server/api.cjs
 // Backwards-compatible /api/user + /api/users, improved MongoDB hints, graceful shutdown
 require('dotenv').config(); // load .env at top
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -36,10 +37,16 @@ const MONGO_URI = rawMongoUri || 'mongodb://127.0.0.1:27017/video-project';
  */
 async function connectDB() {
   try {
+    // Use safe options. Newer Mongoose versions no longer require useNewUrlParser / useUnifiedTopology,
+    // but adding them doesn't hurt if using slightly older drivers.
     await mongoose.connect(MONGO_URI, {
       serverSelectionTimeoutMS: 60000,
       socketTimeoutMS: 120000,
+      // these are optional - Mongoose defaults changed in v6, but kept for compatibility:
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
+
     console.log('✅ MongoDB Connected');
   } catch (err) {
     console.error('❌ MongoDB Connection Error:', err && err.message ? err.message : err);
