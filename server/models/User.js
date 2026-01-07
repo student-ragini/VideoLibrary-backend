@@ -1,4 +1,3 @@
-// server/models/User.js
 const mongoose = require("mongoose");
 
 const SavedItemSchema = new mongoose.Schema(

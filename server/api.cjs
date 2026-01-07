@@ -1,4 +1,3 @@
-// server/api.cjs
 // Backwards-compatible /api/user + /api/users, improved MongoDB hints, graceful shutdown
 require('dotenv').config(); // load .env at top
 

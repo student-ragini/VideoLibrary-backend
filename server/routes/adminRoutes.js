@@ -1,4 +1,3 @@
-// server/routes/adminRoutes.js
 const express = require("express");
 const Admin = require("../models/Admin");
 const bcrypt = require("bcrypt");
@@ -23,7 +22,6 @@ router.get("/", async (req, res) => {
 
 /**
  * POST /api/admin/login
- * Body: { admin_id: "john_admin", password: "..." }
  */
 router.post("/login", async (req, res) => {
   try {
