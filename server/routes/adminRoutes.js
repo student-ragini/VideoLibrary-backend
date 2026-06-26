@@ -8,18 +8,19 @@ const SALT_ROUNDS = 10;
 console.log("✅ adminRoutes loaded.");
 
 /* =========================
-   CREATE ADMIN (ONE TIME)
+   CREATE ADMIN 
    POST /api/admin/register
 ========================= */
 router.post("/register", async (req, res) => {
   try {
-    const { admin_id, password } = req.body;
+    const { admin_id, admin_name, email, mobile, password } = req.body;
 
-    if (!admin_id || !password) {
-      return res.json({ success: false, error: "admin_id & password required" });
+    if (!admin_id || !admin_name || !email || !mobile || !password) {
+      return res.json({ success: false, error: "All fields are required" });
     }
 
     const exists = await Admin.findOne({ admin_id });
+    console.log(req.body);
     if (exists) {
       return res.json({ success: false, error: "Admin already exists" });
     }
@@ -29,22 +30,33 @@ router.post("/register", async (req, res) => {
 
     const admin = new Admin({
       admin_id,
+      admin_name,
+      email,
+      mobile,
       password: hashedPassword
     });
 
-    await admin.save();
+    try {
+  await admin.save();
+  console.log("Admin Saved Successfully");
+} catch (e) {
+  console.log("SAVE ERROR:", e);
+  throw e;
+}
+
 
     res.json({ success: true, message: "Admin created successfully" });
   } catch (err) {
     console.error("Admin register error:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
 /* =========================
-   ADMIN LOGIN (NO CHANGE)
+   ADMIN LOGIN 
 ========================= */
 router.post("/login", async (req, res) => {
+  console.log("Login Body:", req.body);
   try {
     const { admin_id, password } = req.body;
 
@@ -53,10 +65,13 @@ router.post("/login", async (req, res) => {
     }
 
     const admin = await Admin.findOne({ admin_id });
+    console.log("Admin Found:", admin);
     if (!admin) {
       return res.json({ success: false });
     }
-
+     
+    console.log("PASSWORD FROM USER:", password);
+console.log("HASH FROM DB:", admin.password);
     // 🔐 bcrypt compare
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {

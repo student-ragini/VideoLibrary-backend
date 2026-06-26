@@ -2,7 +2,6 @@ const express = require("express");
 const Video = require("../models/Video");
 const router = express.Router();
 
-// GET /api/videos -> list all videos
 router.get("/", async (_req, res) => {
   try {
     const videos = await Video.find().lean();
@@ -12,16 +11,14 @@ router.get("/", async (_req, res) => {
   }
 });
 
-// GET /api/videos/:id -> get single by _id OR by video_id
 router.get("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     let video = null;
 
-    // try as ObjectId
     video = await Video.findById(id).lean().catch(() => null);
     if (!video) {
-      // fallback: try video_id numeric
+    
       const vidNum = Number(id);
       if (!isNaN(vidNum)) {
         video = await Video.findOne({ video_id: vidNum }).lean();
@@ -35,23 +32,22 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST /api/videos -> create new video
+
 router.post("/", async (req, res) => {
   try {
     const payload = req.body || {};
 
-    // ensure video_id exists (auto-generate if not)
+    
     if (!payload.video_id) {
       const last = await Video.findOne().sort({ video_id: -1 }).lean();
       payload.video_id = last ? (Number(last.video_id) || 0) + 1 : 1;
     }
 
-    // sanitize numeric fields (in case they came as strings)
     payload.likes = Number(payload.likes) || 0;
     payload.views = Number(payload.views) || 0;
     payload.category_id = Number(payload.category_id) || 1;
 
-    // ensure comments exists (schema has default but set here too)
+    
     if (typeof payload.comments === "undefined") payload.comments = "";
 
     const doc = new Video(payload);
@@ -63,19 +59,18 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT /api/videos/:id -> update by _id or video_id
 router.put("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const body = req.body || {};
 
-    // sanitize numeric fields if present
+  
     if (body.likes !== undefined) body.likes = Number(body.likes) || 0;
     if (body.views !== undefined) body.views = Number(body.views) || 0;
     if (body.category_id !== undefined) body.category_id = Number(body.category_id) || 1;
 
     let updated = null;
-    // try find by ObjectId first
+    
     updated = await Video.findByIdAndUpdate(id, body, { new: true }).catch(() => null);
     if (!updated) {
       const vidNum = Number(id);
@@ -92,7 +87,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/videos/:id -> delete by _id or video_id
 router.delete("/:id", async (req, res) => {
   try {
     const id = req.params.id;

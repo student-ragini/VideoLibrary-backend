@@ -5,11 +5,9 @@ const router = express.Router();
 
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || "10", 10);
 
-/* GET /api/users -> list all users (for dev) */
 router.get("/", async (_req, res) => {
   try {
     const users = await User.find().lean();
-    // NOTE: do NOT return password in production; here for dev only
     const safe = users.map(u => {
       const { password, ...rest } = u;
       return rest;
@@ -20,7 +18,6 @@ router.get("/", async (_req, res) => {
   }
 });
 
-/* POST /api/user/register  (manual user_id) */
 router.post("/register", async (req, res) => {
   try {
     const { user_id, user_name, password, email, mobile } = req.body;
@@ -59,7 +56,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-/* POST /api/user/login  (by user_id + password; email fallback optional) */
 router.post("/login", async (req, res) => {
   try {
     const { user_id, email, password } = req.body;
